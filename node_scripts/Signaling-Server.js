@@ -9,7 +9,7 @@ var adminSocket;
 const RL = require("./express-rate-limit"); //TODO
 var rateLimit = new RL({
     windowMs: 1 * 30 * 1000, // 5 minutes
-    max: 5 // limit each IP to 100 requests per windowMs
+    max: 5000 // limit each IP to 100 requests per windowMs
   });
 
 // for scalable-broadcast demos
