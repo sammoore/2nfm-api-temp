@@ -230,8 +230,6 @@ module.exports = exports = function (app, socketCallback) {
             //do not execute. show wrong html    
             return;
         }
-        console.log('move on');
-
 
         socket.on('extra-data-updated', function (extra) {
             try {
