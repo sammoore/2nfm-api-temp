@@ -61,7 +61,7 @@ module.exports = exports = function (app, socketCallback) {
         try {
             var alreadyExist = listOfUsers[socket.userid];
             var extra = {};
-            // let ratelimit = [];
+
             if (alreadyExist && alreadyExist.extra) {
                 extra = alreadyExist.extra;
             }
