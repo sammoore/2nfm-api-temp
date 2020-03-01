@@ -150,7 +150,7 @@ module.exports = exports = function (app, socketCallback) {
                 }
 
                 if (message.clearLogs === true) {
-                    // last callback parameter will force to clear log
+                    // last callback parameter will force to clear logs
                     pushLogs('', '', callback);
                 }
 
