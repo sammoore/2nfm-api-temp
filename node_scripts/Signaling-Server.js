@@ -6,11 +6,17 @@ var listOfUsers = {};
 var listOfRooms = {};
 var adminSocket;
 
+const RL = require("./express-rate-limit"); //TODO
+var rateLimit = new RL({
+    windowMs: 1 * 30 * 1000, // 5 minutes
+    max: 5000 // limit each IP to 100 requests per windowMs
+});
+
 // for scalable-broadcast demos
 var ScalableBroadcast;
 
 // pushLogs is used to write error logs into logs.json
-var pushLogs = function(name, error) {
+var pushLogs = function (name, error) {
     console.log(name, error);
 };
 try {
@@ -19,8 +25,8 @@ try {
     console.log('Unable to read pushLogs.js', e);
 }
 
-module.exports = exports = function(app, socketCallback) {
-    socketCallback = socketCallback || function() {};
+module.exports = exports = function (app, socketCallback) {
+    socketCallback = socketCallback || function () { };
 
     if (!!app.listen) {
         var io = require('socket.io');
@@ -79,7 +85,7 @@ module.exports = exports = function(app, socketCallback) {
                 isPublic: false, // means: isPublicModerator
                 extra: extra || {},
                 admininfo: {},
-                maxParticipantsAllowed: params.maxParticipantsAllowed || 1000
+                maxParticipantsAllowed: params.maxParticipantsAllowed || 1000,
             };
         } catch (e) {
             pushLogs('appendUser', e);
@@ -116,13 +122,13 @@ module.exports = exports = function(app, socketCallback) {
             }
 
             adminSocket = socket;
-            socket.on('admin', function(message, callback) {
+            socket.on('admin', function (message, callback) {
                 if (!app.request || !app.isAdminAuthorized || !app.config || !app.isAdminAuthorized(app.request, app.config)) {
                     socket.disconnect();
                     return;
                 }
 
-                callback = callback || function() {};
+                callback = callback || function () { };
 
                 if (message.all === true) {
                     sendToAdmin();
@@ -148,40 +154,40 @@ module.exports = exports = function(app, socketCallback) {
                     pushLogs('', '', callback);
                 }
 
-                if(message.deleteUser === true) {
+                if (message.deleteUser === true) {
                     try {
                         var user = listOfUsers[message.userid];
-                        
-                        if(user) {
+
+                        if (user) {
                             user.socket.disconnect();
                         }
 
                         // delete listOfUsers[message.userid];
                         callback(true);
                     }
-                    catch(e) {
+                    catch (e) {
                         pushLogs('deleteUser', e);
                         callback(false);
                     }
                 }
 
-                if(message.deleteRoom === true) {
+                if (message.deleteRoom === true) {
                     try {
                         var room = listOfRooms[message.roomid];
-                        
-                        if(room) {
+
+                        if (room) {
                             var participants = room.participants;
                             delete listOfRooms[message.roomid];
-                            participants.forEach(function(userid) {
+                            participants.forEach(function (userid) {
                                 var user = listOfUsers[userid];
-                                if(user) {
+                                if (user) {
                                     user.socket.disconnect();
                                 }
                             });
                         }
                         callback(true);
                     }
-                    catch(e) {
+                    catch (e) {
                         pushLogs('deleteRoom', e);
                         callback(false);
                     }
@@ -219,7 +225,13 @@ module.exports = exports = function(app, socketCallback) {
         socket.userid = params.userid;
         appendUser(socket);
 
-        socket.on('extra-data-updated', function(extra) {
+        //rate limit check based on ip address
+        if (rateLimit.checkLimit(socket.handshake.address) === -1) {
+            //do not execute. show wrong html    
+            return;
+        }
+
+        socket.on('extra-data-updated', function (extra) {
             try {
                 if (!listOfUsers[socket.userid]) return;
 
@@ -238,8 +250,8 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('get-remote-user-extra-data', function(remoteUserId, callback) {
-            callback = callback || function() {};
+        socket.on('get-remote-user-extra-data', function (remoteUserId, callback) {
+            callback = callback || function () { };
             if (!remoteUserId || !listOfUsers[remoteUserId]) {
                 callback('remoteUserId (' + remoteUserId + ') does NOT exist.');
                 return;
@@ -247,7 +259,7 @@ module.exports = exports = function(app, socketCallback) {
             callback(listOfUsers[remoteUserId].extra);
         });
 
-        socket.on('become-a-public-moderator', function() {
+        socket.on('become-a-public-moderator', function () {
             try {
                 if (!listOfUsers[socket.userid]) return;
                 listOfUsers[socket.userid].isPublic = true;
@@ -257,18 +269,18 @@ module.exports = exports = function(app, socketCallback) {
         });
 
         var dontDuplicateListeners = {};
-        socket.on('set-custom-socket-event-listener', function(customEvent) {
+        socket.on('set-custom-socket-event-listener', function (customEvent) {
             if (dontDuplicateListeners[customEvent]) return;
             dontDuplicateListeners[customEvent] = customEvent;
 
-            socket.on(customEvent, function(message) {
+            socket.on(customEvent, function (message) {
                 try {
                     socket.broadcast.emit(customEvent, message);
-                } catch (e) {}
+                } catch (e) { }
             });
         });
 
-        socket.on('dont-make-me-moderator', function() {
+        socket.on('dont-make-me-moderator', function () {
             try {
                 if (!listOfUsers[socket.userid]) return;
                 listOfUsers[socket.userid].isPublic = false;
@@ -277,7 +289,7 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('get-public-moderators', function(userIdStartsWith, callback) {
+        socket.on('get-public-moderators', function (userIdStartsWith, callback) {
             try {
                 userIdStartsWith = userIdStartsWith || '';
                 var allPublicModerators = [];
@@ -297,8 +309,8 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('changed-uuid', function(newUserId, callback) {
-            callback = callback || function() {};
+        socket.on('changed-uuid', function (newUserId, callback) {
+            callback = callback || function () { };
 
             if (params.dontUpdateUserId) {
                 delete params.dontUpdateUserId;
@@ -327,7 +339,7 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('set-password', function(password) {
+        socket.on('set-password', function (password) {
             try {
                 if (listOfRooms[socket.roomid] && listOfRooms[socket.roomid].owner == socket.userid) {
                     listOfRooms[socket.roomid].password = password;
@@ -337,7 +349,7 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('disconnect-with', function(remoteUserId, callback) {
+        socket.on('disconnect-with', function (remoteUserId, callback) {
             try {
                 if (listOfUsers[socket.userid] && listOfUsers[socket.userid].connectedWith[remoteUserId]) {
                     delete listOfUsers[socket.userid].connectedWith[remoteUserId];
@@ -358,14 +370,14 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('close-entire-session', function(callback) {
+        socket.on('close-entire-session', function (callback) {
             try {
                 var connectedWith = listOfUsers[socket.userid].connectedWith;
-                Object.keys(connectedWith).forEach(function(key) {
+                Object.keys(connectedWith).forEach(function (key) {
                     if (connectedWith[key] && connectedWith[key].emit) {
                         try {
                             connectedWith[key].emit('closed-entire-session', socket.userid, listOfUsers[socket.userid].extra);
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                 });
                 callback();
@@ -374,7 +386,7 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('check-presence', function(roomid, callback) {
+        socket.on('check-presence', function (roomid, callback) {
             try {
                 if (!listOfRooms[roomid]) {
                     callback(false, roomid, {});
@@ -458,7 +470,7 @@ module.exports = exports = function(app, socketCallback) {
 
                 if (enableScalableBroadcast === false) {
                     // connect with all participants
-                    listOfRooms[roomid].participants.forEach(function(pid) {
+                    listOfRooms[roomid].participants.forEach(function (pid) {
                         if (pid === socket.userid) return;
 
                         var user = listOfUsers[pid];
@@ -507,7 +519,7 @@ module.exports = exports = function(app, socketCallback) {
                     if (socket.userid === listOfRooms[roomid].owner) {
                         if (autoCloseEntireSession === false && listOfRooms[roomid].participants.length > 1) {
                             var firstParticipant;
-                            listOfRooms[roomid].participants.forEach(function(pid) {
+                            listOfRooms[roomid].participants.forEach(function (pid) {
                                 if (firstParticipant || pid === socket.userid) return;
                                 if (!listOfUsers[pid]) return;
                                 firstParticipant = listOfUsers[pid];
@@ -523,7 +535,7 @@ module.exports = exports = function(app, socketCallback) {
 
                                 // remove moderator from room's participants list
                                 var newParticipantsList = [];
-                                listOfRooms[roomid].participants.forEach(function(pid) {
+                                listOfRooms[roomid].participants.forEach(function (pid) {
                                     if (pid != socket.userid) {
                                         newParticipantsList.push(pid);
                                     }
@@ -537,7 +549,7 @@ module.exports = exports = function(app, socketCallback) {
                         }
                     } else {
                         var newParticipantsList = [];
-                        listOfRooms[roomid].participants.forEach(function(pid) {
+                        listOfRooms[roomid].participants.forEach(function (pid) {
                             if (pid && pid != socket.userid && listOfUsers[pid]) {
                                 newParticipantsList.push(pid);
                             }
@@ -551,7 +563,7 @@ module.exports = exports = function(app, socketCallback) {
         }
 
         var numberOfPasswordTries = 0;
-        socket.on(socketMessageEvent, function(message, callback) {
+        socket.on(socketMessageEvent, function (message, callback) {
             if (message.remoteUserId && message.remoteUserId === socket.userid) {
                 // remoteUserId MUST be unique
                 return;
@@ -652,8 +664,8 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('open-room', function(arg, callback) {
-            callback = callback || function() {};
+        socket.on('open-room', function (arg, callback) {
+            callback = callback || function () { };
 
             try {
                 // if already joined a room, either leave or close it
@@ -732,8 +744,8 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('join-room', function(arg, callback) {
-            callback = callback || function() {};
+        socket.on('join-room', function (arg, callback) {
+            callback = callback || function () { };
 
             try {
                 // if already joined a room, either leave or close it
@@ -800,7 +812,7 @@ module.exports = exports = function(app, socketCallback) {
             }
         });
 
-        socket.on('disconnect', function() {
+        socket.on('disconnect', function () {
             try {
                 if (socket && socket.namespace && socket.namespace.sockets) {
                     delete socket.namespace.sockets[this.id];
