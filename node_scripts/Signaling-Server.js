@@ -6,6 +6,12 @@ var listOfUsers = {};
 var listOfRooms = {};
 var adminSocket;
 
+const RL = require("./express-rate-limit"); //TODO
+var rateLimit = new RL({
+    windowMs: 1 * 30 * 1000, // 5 minutes
+    max: 5 // limit each IP to 100 requests per windowMs
+  });
+
 // for scalable-broadcast demos
 var ScalableBroadcast;
 
@@ -55,7 +61,7 @@ module.exports = exports = function(app, socketCallback) {
         try {
             var alreadyExist = listOfUsers[socket.userid];
             var extra = {};
-
+            // let ratelimit = [];
             if (alreadyExist && alreadyExist.extra) {
                 extra = alreadyExist.extra;
             }
@@ -79,7 +85,7 @@ module.exports = exports = function(app, socketCallback) {
                 isPublic: false, // means: isPublicModerator
                 extra: extra || {},
                 admininfo: {},
-                maxParticipantsAllowed: params.maxParticipantsAllowed || 1000
+                maxParticipantsAllowed: params.maxParticipantsAllowed || 1000,
             };
         } catch (e) {
             pushLogs('appendUser', e);
@@ -144,7 +150,7 @@ module.exports = exports = function(app, socketCallback) {
                 }
 
                 if (message.clearLogs === true) {
-                    // last callback parameter will force to clear logs
+                    // last callback parameter will force to clear log
                     pushLogs('', '', callback);
                 }
 
@@ -218,6 +224,14 @@ module.exports = exports = function(app, socketCallback) {
 
         socket.userid = params.userid;
         appendUser(socket);
+
+        //rate limit check based on ip address
+        if(rateLimit.checkLimit(socket.handshake.address)===-1){
+            //do not execute. show wrong html    
+            return; 
+        }
+        console.log('move on');
+
 
         socket.on('extra-data-updated', function(extra) {
             try {
