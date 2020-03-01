@@ -28,31 +28,25 @@ class RateLimit {
 
 
   checkLimit(key) {
-      try {
-        if(!(key in this.rateLimitGroup)){
-          this.rateLimitGroup[key] = new MemoryStore(this.options.windowMs, this.options.samplingPeriod, this.options.max);
-          console.log('New limit table created for ip ' + key);
-        }
-      
-        if (this.rateLimitGroup[key].incr(this.options.max) === -1) {
-          this.options.onLimitReached();
-          console.log('Limit exceeded for ip '+ key);
-          return -1;
-        }
-        console.log('limit checked');
-        return 1;
+    try {
+      if (!(key in this.rateLimitGroup)) {
+        this.rateLimitGroup[key] = new MemoryStore(this.options.windowMs, this.options.samplingPeriod, this.options.max);
+        console.log('New limit table created for ip ' + key);
       }
-      catch (e) {
-        pushLogs('checkLimit', e);
-      }
-    }
 
+      if (this.rateLimitGroup[key].incr(this.options.max) === -1) {
+        this.options.onLimitReached();
+        console.log('Limit exceeded for ip ' + key);
+        return -1;
+      }
+      console.log('limit checked');
+      return 1;
+    }
+    catch (e) {
+      pushLogs('checkLimit', e);
+    }
   }
 
-
-
-
-
-
+}
 
 module.exports = RateLimit;
